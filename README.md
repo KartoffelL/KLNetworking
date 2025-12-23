@@ -67,89 +67,83 @@ Include the Net.java file.<br>
 Example:
 ```
 SSLContext sslContext = createClientContext(); //Create context if using encryption
-		final SocketChannel client = SocketChannel.open(); //Create socket channel
-		client.connect(new InetSocketAddress("localhost", 5555)); //Connect to host
-		client.configureBlocking(false); //Configure non blocking
-		var clientIO = ClientTlsChannel.newBuilder(client, sslContext).build(); //Set the IO to pass through the encryption.
-		var tc = new TestClient() { //Implement callback methods
-			@Override
-			public void test() {
-				System.out.println("[Client] from server: test");
-			}
-			@Override
-			public void say(char[] a) {
-				System.out.println("[Client] from server: say something; " + new String(a));
-			}
-			@Override
-			public void onDisconnect() {
-				System.out.println("[Client] disconnected client from server");
-			}
-			@Override
-			public void onConnect(SocketChannel channel, NetConnection<?, ?> connection) {
-				System.out.println("[Client] connected to server "+ connection);
-			}
-		};
-		clientConnection = Net.connect(client, tc, TestClientServer.class, TestClient.class, USE_ENCRYPTION?clientIO:client); //Create NetConnection.
+final SocketChannel client = SocketChannel.open(); //Create socket channel
+client.connect(new InetSocketAddress("localhost", 5555)); //Connect to host
+client.configureBlocking(false); //Configure non blocking
+var clientIO = ClientTlsChannel.newBuilder(client, sslContext).build(); //Set the IO to pass through the encryption.
+var tc = new TestClient() { //Implement callback methods
+	@Override
+	public void test() {
+		System.out.println("[Client] from server: test");
+	}
+	@Override
+	public void say(char[] a) {
+		System.out.println("[Client] from server: say something; " + new String(a));
+	}
+	@Override
+	public void onDisconnect() {
+			System.out.println("[Client] disconnected client from server");
+		}
+	@Override
+	public void onConnect(SocketChannel channel, NetConnection<?, ?> connection) {
+			System.out.println("[Client] connected to server "+ connection);
+		}
+	};
+clientConnection = Net.connect(client, tc, TestClientServer.class, TestClient.class, USE_ENCRYPTION?clientIO:client); //Create NetConnection.
 ```
 ##### 2. Using the library to create a server:<br>
 Include the Net.java and the NetServer.java files<br>
 Example:
 ```
-KeyStore ks = KeyStore.getInstance("JKS"); //Load keys if using encryption
-		try(var is = Test.class.getResourceAsStream("/keystore.jks")) {
-			ks.load(is, "password".toCharArray());
-		}
-		SSLContext sslContext = createServerContext(ks, "password".toCharArray());
-		var a = ServerSocketChannel.open(); //Create server socket channel
-		a.configureBlocking(false); //Configure non blocking
-		a.bind(new InetSocketAddress(5555), 0); //Bind to address
-		server = new NetServer<TestServer, TestClient>(a, TestServer.class, TestClient.class, //Create the NetServer
-				Thread.ofPlatform().factory(), 0) {
-		
-			@Override
-			protected void onHTMLConnection(NetConnection<TestClientServer, TestClient> connection,
-				String header) {
-				connection.wb.writeRaw(("HTTP/1.1 200 OKE\nConnection: close\n\r\n\r").getBytes(StandardCharsets.UTF_8));
-				connection.wb.writeRaw("<html>Nothing to be seen here</html>".getBytes(StandardCharsets.UTF_8));
-				validate(connection.c); //Remove default timeout
-				disconnectLater(connection.c, 1000); //Add custom one.
-			}
+SSLContext sslContext = createServerContext(...);
+var a = ServerSocketChannel.open(); //Create server socket channel
+a.configureBlocking(false); //Configure non blocking
+a.bind(new InetSocketAddress(5555), 0); //Bind to address
+server = new NetServer<TestServer, TestClient>(a, TestServer.class, TestClient.class, Thread.ofPlatform().factory(), 0) {//Create the NetServer
+	@Override
+	protected void onHTMLConnection(NetConnection<TestClientServer, TestClient> connection,
+		String header) {
+		connection.wb.writeRaw(("HTTP/1.1 200 OKE\nConnection: close\n\r\n\r").getBytes(StandardCharsets.UTF_8));
+		connection.wb.writeRaw("<html>Nothing to be seen here</html>".getBytes(StandardCharsets.UTF_8));
+		validate(connection.c); //Remove default timeout
+		disconnectLater(connection.c, 1000); //Add custom one.
+	}
 
+	@Override
+	public ByteChannel accept(SocketChannel channel) {
+		return USE_ENCRYPTION?ServerTlsChannel.newBuilder(channel, sslContext).build():channel;
+	}
+		
+	@Override
+	public TestServer accept(TestClient channel) {
+		System.out.println("[Server] New client: " + channel);
+		return new TestClientServer() {
 			@Override
-			public ByteChannel accept(SocketChannel channel) {
-				return USE_ENCRYPTION?ServerTlsChannel.newBuilder(channel, sslContext).build():channel;
+			public void test(byte[] s) {
+				System.out.println("[Server] from client: " + s.length);
 			}
-			
 			@Override
-			public TestServer accept(TestClient channel) {
-				System.out.println("[Server] New client: " + channel);
-				return new TestClientServer() {
-					@Override
-					public void test(byte[] s) {
-						System.out.println("[Server] from client: " + s.length);
-					}
-					@Override
-					public void say(int a) {
-						System.out.println("[Server] from client: say something; " + a);
-					}
-					@Override
-					public void say(double a, int b) {
-						System.out.println("[Server] from client: say something; " + a + ", " + b);
-					};
-					@Override
-					public void onDisconnect() {
-						System.out.println("[Server] client disconnected " + channel.getConnection().c);
-					}
-					@Override
-					public void onConnect(SocketChannel channel, NetConnection<?, ?> connection) {
-						System.out.println("[Server] client connected "+ connection);
-					}
-				};
+			public void say(int a) {
+				System.out.println("[Server] from client: say something; " + a);
+			}
+			@Override
+			public void say(double a, int b) {
+				System.out.println("[Server] from client: say something; " + a + ", " + b);
+			};
+			@Override
+			public void onDisconnect() {
+				System.out.println("[Server] client disconnected " + channel.getConnection().c);
+			}
+			@Override
+			public void onConnect(SocketChannel channel, NetConnection<?, ?> connection) {
+				System.out.println("[Server] client connected "+ connection);
 			}
 		};
-		server.setHTMLConnectionsEnabled(true); //Enable html connections
-		server.setValidationTimeout(5000);
-		server.start(); //Start the server
+	}
+};
+server.setHTMLConnectionsEnabled(true); //Enable html connections
+server.setValidationTimeout(5000);
+server.start(); //Start the server
 ```
 Firstly, the server has multiple ways of getting a client disconnected. Either an exception is thrown, it is disconnected due to validation, due to some kind of time limit or because of an end-of-stream, or any kind of combination of these.
 When a client initially connects, the ``public ByteChannel accept(SocketChannel channel)`` function is called, which returns the IO from/to the client, or null to reject the connection. This would be useful if using encryption. Also, since the server does not keep track of past connections, rate-limiting could also be implemented here. 
