@@ -18,7 +18,7 @@ To use, simply download any source files you want to use in your project. Just k
 Using the library, any number of clients or servers can be created in a single application. And any number of clients can connect to a single server (creaating a Connection in the process).
 But a single client can only connect to a single server. The library does not handle the creation process of the Socketchannel in clients or the ServerSocketChannel in servers, but it does take it over (eg. it will be closed by the library).
 The primary way to use the library is by creating interfaces representing the server and the client:
-```
+```java
 import Kartoffel.Licht.Networking.Net.ClientPeerI;
 import Kartoffel.Licht.Networking.Net.Networking;
 /**
@@ -33,7 +33,7 @@ public interface TestClient extends ClientPeerI{
 	
 }
 ```
-```
+```java
 import Kartoffel.Licht.Networking.Net.Networking;
 import Kartoffel.Licht.Networking.Net.ServerPeerI;
 /**
@@ -56,7 +56,7 @@ the unique method-id.<br>
 `It is recommended to change that id everytime the method changes (eg. name, parameters, function)`<br>
 <br>
 When using in conjunction with tlschannel, the ``Net.isWouldBlockException`` field has to be set to be a predicate returning true if the provided exception is a ``tlschannel.WouldBlockException``, eg:
-```
+```java
 Net.isWouldBlockException = (b) -> b instanceof WouldBlockException;
 ```
 
@@ -65,7 +65,7 @@ Net.isWouldBlockException = (b) -> b instanceof WouldBlockException;
 ##### 1. Using the library for client connections:<br>
 Include the Net.java file.<br>
 Example:
-```
+```java
 SSLContext sslContext = createClientContext(); //Create context if using encryption
 final SocketChannel client = SocketChannel.open(); //Create socket channel
 client.connect(new InetSocketAddress("localhost", 5555)); //Connect to host
@@ -94,7 +94,7 @@ clientConnection = Net.connect(client, tc, TestClientServer.class, TestClient.cl
 ##### 2. Using the library to create a server:<br>
 Include the Net.java and the NetServer.java files<br>
 Example:
-```
+```java
 SSLContext sslContext = createServerContext(...);
 var a = ServerSocketChannel.open(); //Create server socket channel
 a.configureBlocking(false); //Configure non blocking
@@ -154,7 +154,7 @@ Clients have to be validated after connecting, or else they will be automaticall
 Clients can also be manually disconnected by calling ``disconnect(SocketChannel connection)``, ``disconnectLater(SocketChannel connection, int timeout)`` or ``disconnectOnWriteEnd(SocketChannel connection)``
 
 Note that the server can accept different kinds of requests, which can be toggled:
-```
+```java
 server.setHTMLConnectionsEnabled(true); //Enable html connections (eg. to show a webpage)
 server.setWebsocketConnectionsEnabled(true); //Enable websocket connections (eg. to allow teaVM-clients to connect)
 server.setNormalConnectionsEnabled(false); //Disables normal connections (eg. won't listen to direct connections. Native clients my bypass this by creating a websocket connection instead)
@@ -162,7 +162,7 @@ server.setNormalConnectionsEnabled(false); //Disables normal connections (eg. wo
 ##### 3. Using the library to create a client on teaVM:<br>
   Include the Net.java and the TeaNet.java files.<br>
   Example:
-  ```
+  ```java
 connection = TeaNet.connect("https://example.com:1334", new TestClient() {
       @Override
 			public void test() {
