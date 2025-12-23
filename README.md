@@ -82,13 +82,13 @@ var tc = new TestClient() { //Implement callback methods
 	}
 	@Override
 	public void onDisconnect() {
-			System.out.println("[Client] disconnected client from server");
-		}
+		System.out.println("[Client] disconnected client from server");
+	}
 	@Override
 	public void onConnect(SocketChannel channel, NetConnection<?, ?> connection) {
-			System.out.println("[Client] connected to server "+ connection);
-		}
-	};
+		System.out.println("[Client] connected to server "+ connection);
+	}
+};
 clientConnection = Net.connect(client, tc, TestClientServer.class, TestClient.class, USE_ENCRYPTION?clientIO:client); //Create NetConnection.
 ```
 ##### 2. Using the library to create a server:<br>
