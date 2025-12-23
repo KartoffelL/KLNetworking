@@ -16,7 +16,7 @@ KLNetworking does not guarantee/endorse strict security, nor high-performance th
 To use, simply download any source files you want to use in your project. Just keep in mind to put them into the `Kartoffel.Licht.Net` package. The project is published under the [mit-license](https://opensource.org/license/mit).
 
 Using the library, any number of clients or servers can be created in a single application. And any number of clients can connect to a single server (creaating a Connection in the process).
-But a single client can only connect to a single server. The library does not handle the creation process of the Socketchannel, but it does take it over (eg. it will be closed by the library).
+But a single client can only connect to a single server. The library does not handle the creation process of the Socketchannel in clients or the ServerSocketChannel in servers, but it does take it over (eg. it will be closed by the library).
 The primary way to use the library is by creating interfaces representing the server and the client:
 ```
 import Kartoffel.Licht.Networking.Net.ClientPeerI;
