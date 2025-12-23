@@ -54,6 +54,11 @@ These interfaces directly contain method definitions, that can later be invoked.
 Each method has to be public, void-returning and only contain primitive (-array) parameters. Each one also has to be annotated with the @Networking Annotation, specifying 
 the unique method-id.<br>
 `It is recommended to change that id everytime the method changes (eg. name, parameters, function)`<br>
+<br>
+When using in conjunction with tlschannel, the ``Net.isWouldBlockException`` field has to be set to be a predicate returning true if the provided exception is a ``tlschannel.WouldBlockException``, eg:
+```
+Net.isWouldBlockException = (b) -> b instanceof WouldBlockException;
+```
 
 ### Usecases:
 
@@ -100,7 +105,16 @@ KeyStore ks = KeyStore.getInstance("JKS"); //Load keys if using encryption
 		a.bind(new InetSocketAddress(5555), 0); //Bind to address
 		server = new NetServer<TestServer, TestClient>(a, TestServer.class, TestClient.class, //Create the NetServer
 				Thread.ofPlatform().factory(), 0) {
-			
+		
+			@Override
+			protected void onHTMLConnection(NetConnection<TestClientServer, TestClient> connection,
+				String header) {
+				connection.wb.writeRaw(("HTTP/1.1 200 OKE\nConnection: close\n\r\n\r").getBytes(StandardCharsets.UTF_8));
+				connection.wb.writeRaw("<html>Nothing to be seen here</html>".getBytes(StandardCharsets.UTF_8));
+				validate(connection.c); //Remove default timeout
+				disconnectLater(connection.c, 1000); //Add custom one.
+			}
+
 			@Override
 			public ByteChannel accept(SocketChannel channel) {
 				return USE_ENCRYPTION?ServerTlsChannel.newBuilder(channel, sslContext).build():channel;
@@ -119,6 +133,10 @@ KeyStore ks = KeyStore.getInstance("JKS"); //Load keys if using encryption
 						System.out.println("[Server] from client: say something; " + a);
 					}
 					@Override
+					public void say(double a, int b) {
+						System.out.println("[Server] from client: say something; " + a + ", " + b);
+					};
+					@Override
 					public void onDisconnect() {
 						System.out.println("[Server] client disconnected " + channel.getConnection().c);
 					}
@@ -126,15 +144,26 @@ KeyStore ks = KeyStore.getInstance("JKS"); //Load keys if using encryption
 					public void onConnect(SocketChannel channel, NetConnection<?, ?> connection) {
 						System.out.println("[Server] client connected "+ connection);
 					}
-					@Override
-					public void say(double a, int b) {
-						System.out.println("[Server] from client: say something; " + a + ", " + b);
-					};
 				};
 			}
 		};
 		server.setHTMLConnectionsEnabled(true); //Enable html connections
+		server.setValidationTimeout(5000);
 		server.start(); //Start the server
+```
+Firstly, the server has multiple ways of getting a client disconnected. Either an exception is thrown, it is disconnected due to validation, due to some kind of time limit or because of an end-of-stream, or any kind of combination of these.
+When a client initially connects, the ``public ByteChannel accept(SocketChannel channel)`` function is called, which returns the IO from/to the client, or null to reject the connection. This would be useful if using encryption. Also, since the server does not keep track of past connections, rate-limiting could also be implemented here. 
+If the connection is accepted, it gets set up and the ``public TestServer accept(TestClient channel)`` method is called, which returns the methods that will be called by the client.<br>
+Furthermore, if html connections are enabled, the ``protected void onHTMLConnection(NetConnection<TestClientServer, TestClient> connection, String header)`` will be called, which may respond to show, for example, a web page.<br>
+<br>
+Clients have to be validated after connecting, or else they will be automatically disconnected some time after the validation timeout (see ``setValidationTimeout(long millis)``), which can be done by calling ``validate(Socketchannel connection)``.
+Clients can also be manually disconnected by calling ``disconnect(SocketChannel connection)``, ``disconnectLater(SocketChannel connection, int timeout)`` or ``disconnectOnWriteEnd(SocketChannel connection)``
+
+Note that the server can accept different kinds of requests, which can be toggled:
+```
+server.setHTMLConnectionsEnabled(true); //Enable html connections (eg. to show a webpage)
+server.setWebsocketConnectionsEnabled(true); //Enable websocket connections (eg. to allow teaVM-clients to connect)
+server.setNormalConnectionsEnabled(false); //Disables normal connections (eg. won't listen to direct connections. Native clients my bypass this by creating a websocket connection instead)
 ```
 ##### 3. Using the library to create a client on teaVM:<br>
   Include the Net.java and the TeaNet.java files.<br>
