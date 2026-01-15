@@ -1221,7 +1221,7 @@ public class Net {
             Set<SelectionKey> selectedKeys = s.selectedKeys();
             synchronized (selectedKeys) {
                 selectedKeys.clear();
-                int numKeySelected = s.selectNow();
+                int numKeySelected = s.select();
 
                 // copy selected-key set as action may remove keys
                 Set<SelectionKey> keysToConsume = Set.copyOf(selectedKeys);
@@ -1542,3 +1542,4 @@ public class Net {
 	
 
 }
+
